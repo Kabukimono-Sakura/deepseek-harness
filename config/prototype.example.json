@@ -1,0 +1,54 @@
+{
+  "mode": "local-prototype",
+  "agentBackends": {
+    "default": "deepseek-api",
+    "switchPolicy": "next-turn",
+    "automaticFallback": false,
+    "entries": {
+      "deepseek-api": {
+        "adapter": "dsh-deepseek",
+        "auth": "api-key",
+        "baseUrl": "https://api.deepseek.com",
+        "apiKeyEnv": "DEEPSEEK_API_KEY",
+        "model": "deepseek-flash",
+        "implementationStatus": "bridge-implemented-live-verification-pending"
+      },
+      "codex-login": {
+        "adapter": "codex-app-server",
+        "auth": "chatgpt-managed-login",
+        "model": null,
+        "implementationStatus": "planned"
+      },
+      "copilot-login": {
+        "adapter": "github-copilot-sdk",
+        "auth": "copilot-cli-login",
+        "model": null,
+        "implementationStatus": "planned"
+      }
+    }
+  },
+  "runtime": {
+    "provider": "dsh",
+    "version": "0.2.1-rc.2",
+    "profile": "web",
+    "home": ".dsh"
+  },
+  "qq": {
+    "enabled": false,
+    "protocol": "onebot-v11",
+    "transport": "forward-websocket",
+    "url": "ws://127.0.0.1:3001/",
+    "tokenEnv": "ONEBOT_ACCESS_TOKEN",
+    "allowedUsers": [],
+    "allowedGroups": [],
+    "requireMention": true,
+    "messageFormat": "array"
+  },
+  "desktop": { "enabled": false, "plugin": "dsh-pet" },
+  "wechatMp": { "enabled": false },
+  "bilibili": {
+    "enabled": false,
+    "plannedCapabilities": ["video-research", "dynamic-and-comment", "live-danmaku"],
+    "liveRoomId": null
+  }
+}

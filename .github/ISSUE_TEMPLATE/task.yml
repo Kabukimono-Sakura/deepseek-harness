@@ -1,0 +1,17 @@
+name: Implementation task
+description: A small, verifiable backlog item.
+labels: [enhancement, 'status:todo']
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Include tests and separate simulation from live-account verification.
+    validations:
+      required: true

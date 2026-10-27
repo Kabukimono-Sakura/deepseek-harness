@@ -1,0 +1,20 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.runtime/
+.dsh/
+data/
+config/local.json
+tmp/
+*.log
+.cache/
+.tools/
+coverage/
+dist/
+# Reference PDFs and machine-specific research notes stay local.
+相关文档/
+docs/接入调研与实现路线.md
+docs/本地原型.md
+docs/模型登录与后端切换.md
+config/runtime-baseline.json

@@ -9,9 +9,13 @@ export function projectEnvironment() {
   mkdirSync(temporary, { recursive: true });
   return {
     ...process.env,
-    PATH: dirname(process.execPath) + (process.platform === 'win32' ? ';' : ':') + (process.env.PATH ?? ''),
+    PATH: [dirname(process.execPath), join(projectRoot, '.tools/package-manager/node_modules/.bin'), process.env.PATH ?? ''].join(process.platform === 'win32' ? ';' : ':'),
     DSH_HOME: join(projectRoot, '.dsh'),
     npm_config_cache: join(projectRoot, '.cache', 'npm'),
+    npm_config_store_dir: join(projectRoot, '.cache', 'pnpm-store'),
+    npm_config_cache_dir: join(projectRoot, '.cache', 'pnpm'),
+    npm_config_state_dir: join(projectRoot, '.cache', 'pnpm-state'),
+    electron_config_cache: join(projectRoot, '.cache', 'electron'),
     TEMP: temporary,
     TMP: temporary,
     TMPDIR: temporary,

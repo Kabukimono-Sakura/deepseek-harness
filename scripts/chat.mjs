@@ -5,16 +5,23 @@ import { DatabaseSync } from 'node:sqlite';
 import { createInterface } from 'node:readline/promises';
 import { JsonRpcProcess } from '../src/backends/jsonrpc-process.ts';
 import { DshBackend } from '../src/backends/dsh.ts';
+import { PetClient, PetPresenter } from '../src/channels/pet.ts';
 import { projectRoot, projectEnvironment, requireSupportedNode } from './project-env.mjs';
 
 let rpc;
 let terminal;
 let database;
+let pet;
 try {
   requireSupportedNode();
   const envFile = join(projectRoot, '.env');
   if (existsSync(envFile)) process.loadEnvFile(envFile);
   if (!process.env.DEEPSEEK_API_KEY?.trim()) throw new Error('请在项目 .env 中配置 DEEPSEEK_API_KEY，然后重试。不要将密钥发送到聊天或 GitHub。');
+  if (process.env.DSH_PET_ENABLED === '1') {
+    pet = new PetPresenter(new PetClient(process.env.DSH_PET_URL || 'http://127.0.0.1:3847'), () => {
+      console.warn('桌宠暂时不可用或已由你接管，文字对话继续。');
+    });
+  }
   const cli = join(projectRoot, '.runtime/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js');
   if (!existsSync(cli)) throw new Error('请先运行 npm run runtime:install。');
   const name = process.argv[2] ?? 'local';
@@ -40,9 +47,11 @@ try {
     if (text.trim() === '/exit') break;
     if (!text.trim()) continue;
     try {
+      await pet?.thinking();
       const answer = await backend.turn(sessionId, text);
       database.prepare('INSERT OR REPLACE INTO local_sessions (name, session_id) VALUES (?, ?)').run(name, sessionId);
       console.log(`伙伴 > ${answer}\n`);
+      await pet?.reply(answer);
     } catch (error) {
       // An uncertain interval must not be followed by a new prompt in the same process.
       throw new Error(`本轮未完成：${error.message} 请退出后重试；不会自动重发消息。`);
@@ -55,5 +64,6 @@ try {
 } finally {
   terminal?.close();
   rpc?.close();
+  await pet?.close();
   database?.close();
 }

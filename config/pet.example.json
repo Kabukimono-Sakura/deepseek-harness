@@ -1,0 +1,15 @@
+{
+  "notificationsEnabled": false,
+  "confineToScreen": true,
+  "pets": [{
+    "id": "main",
+    "name": "小深",
+    "size": 280,
+    "balanceEnabled": false,
+    "whisperEnabled": false,
+    "workStatusEnabled": true,
+    "fixedEnabled": true,
+    "display": "desktop",
+    "position": { "corner": "bottom-right", "marginX": 200, "marginY": 80 }
+  }]
+}

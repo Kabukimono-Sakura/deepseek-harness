@@ -1,6 +1,6 @@
 # Deepseek Harness implementation plan
 
-Updated: 2026-10-27. Independent companion project; not the official DeepSeek Harness repository.
+Updated: 2026-10-28. Independent companion project; not the official DeepSeek Harness repository.
 
 ## Confirmed scope
 
@@ -29,16 +29,15 @@ Use small issues with acceptance criteria. Keep one active sprint milestone; lab
 
 CI runs without live credentials. Passing a mock test is not evidence of real platform connectivity. Do not deploy platform-facing services automatically before their account-specific configuration exists.
 
-## Current blockers
-
 ## Verification record — 2026-10-27
 
 - Portable Node 24.22.1 and DSH 0.2.1-rc.2 installed in the D-drive project.
-- Local TypeScript checking and 15 offline tests passed.
+- Local TypeScript checking and 19 offline tests passed (updated 2026-10-28).
 - Real DSH Web smoke passed: loopback listener, anonymous HTTP 401, authenticated HTML HTTP 200. No model call was made.
-- Restricted SDK bridge and local CLI implemented; real inference and restart continuity still await API-key configuration.
+- Restricted SDK bridge and local CLI implemented. Actual DSH restart continuity passed against a local simulated model; real DeepSeek inference still awaits API-key configuration.
+- dsh-pet 0.3.8 and Electron 43.3.0 installed; real desktop window and broadcast bubble inspected. CLI status/reply integration implemented. Native drag takeover is covered by protocol tests; live UI automation could not reliably target the click-through window.
 - Public repository, seven milestones and eight acceptance-based issues created. Remote CI results are recorded in GitHub Actions.
 
 ## Remaining account setup
 
-No user API keys or platform logins have been configured in this project. Build and test independent pieces first; collect credentials through local setup when the corresponding integration is ready.
+The user chose to defer DeepSeek API-key setup on 2026-10-28. Continue account-independent development. M0 is complete; M1 remains active until a real model turn and integrated pet reply are accepted. Platform logins remain unconfigured.

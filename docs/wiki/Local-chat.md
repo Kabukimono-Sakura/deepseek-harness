@@ -1,6 +1,6 @@
 # 本地对话
 
-本页描述已实现的 CLI 链路。真实 DeepSeek 账号调用与重启恢复尚待配置 API Key 后验收。
+本页描述已实现的 CLI 链路。真实 DSH 的回复与进程重启恢复已通过本机模拟模型服务验收；真实 DeepSeek 账号调用尚待配置 API Key 后验收。
 
 1. 安装依赖和运行时：`npm ci`、`npm run runtime:install`。
 2. 将 `.env.example` 复制为 `.env`，只在本机编辑 `DEEPSEEK_API_KEY`。

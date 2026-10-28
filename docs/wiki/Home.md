@@ -7,6 +7,7 @@ This is an independent local-first companion built around DeepSeek Harness, not 
 - [Implementation plan](../../plan.md)
 - [Local development](Development.md)
 - [Local conversation setup](Local-chat.md)
+- [Desktop pet](Desktop-pet.md)
 - [Architecture](Architecture.md)
 - [Testing](Testing.md)
 

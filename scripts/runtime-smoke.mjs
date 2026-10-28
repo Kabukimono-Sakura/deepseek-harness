@@ -1,11 +1,18 @@
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { projectRoot, projectEnvironment, requireSupportedNode } from './project-env.mjs';
 
 requireSupportedNode();
+const environment = projectEnvironment();
+const scratch = mkdtempSync(join(projectRoot, 'tmp/web-smoke-'));
+const workspace = join(scratch, 'workspace');
+mkdirSync(workspace);
 const cli = join(projectRoot, '.runtime/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js');
 const child = spawn(process.execPath, [cli, 'web', '--no-open', '--host', '127.0.0.1', '--port', '0'], {
-  cwd: projectRoot, env: projectEnvironment(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+  cwd: workspace, env: { ...environment, DSH_HOME: join(scratch, 'home'), DEEPSEEK_API_KEY: '' },
+  stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
 });
 // Keep bootstrap tokens in process memory. Neither stdout nor CI artifacts contain them.
 child.stderr.resume();
@@ -46,4 +53,9 @@ try {
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;
-} finally { child.kill(); }
+} finally {
+  child.kill();
+  // Temporary home avoids loading the user's keys, sessions or desktop plugins.
+  assert.equal(dirname(resolve(scratch)), resolve(projectRoot, 'tmp'));
+  rmSync(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+}

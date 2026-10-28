@@ -14,6 +14,10 @@
     "dsh": "node scripts/dsh.mjs",
     "chat": "node scripts/chat.mjs",
     "test:runtime": "node scripts/runtime-smoke.mjs",
+    "test:sdk": "node scripts/sdk-smoke.mjs",
+    "pet:install": "node scripts/install-pet.mjs",
+    "pet": "node scripts/dsh.mjs web --no-open --host 127.0.0.1 --port 3847",
+    "pet:demo": "node scripts/pet-demo.mjs",
     "runtime:install": "node scripts/install-runtime.mjs"
   },
   "devDependencies": {

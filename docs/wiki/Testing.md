@@ -2,6 +2,8 @@
 
 `npm run check` performs TypeScript checking, Node test-runner tests with coverage output, and a tracked-path check for runtime/private files.
 
+The Windows control panel iteration brings the offline suite to 47 passing tests. Windows CI additionally compiles the launcher and checks its seven action bindings with `--self-test`. Local real-service start/stop and QR endpoint checks are recorded in [Control panel](Control-panel.md).
+
 GitHub Actions executes this on Windows and Ubuntu with Node 24. Tests use fictitious identities and local/mock services. Real model and platform checks are recorded separately and are never required of public pull requests.
 
 Important behaviors to cover as implemented: user/group isolation, duplicate delivery, FIFO ordering, rejected senders, connection loss, uncertain send outcomes, backend switching during a turn, cancellation, restart persistence and credential redaction.

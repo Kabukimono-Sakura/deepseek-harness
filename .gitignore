@@ -12,6 +12,7 @@ tmp/
 .tools/
 coverage/
 dist/
+/Deepseek Harness.exe
 # Reference PDFs and machine-specific research notes stay local.
 相关文档/
 docs/接入调研与实现路线.md

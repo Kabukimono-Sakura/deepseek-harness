@@ -25,6 +25,13 @@ jobs:
           node-version: '24'
       - run: npm ci --ignore-scripts
       - run: npm run check
+      - name: Build Windows control panel
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          .\scripts\build-panel.ps1
+          $panel = Start-Process -FilePath '.\Deepseek Harness.exe' -ArgumentList '--self-test' -WindowStyle Hidden -Wait -PassThru
+          if ($panel.ExitCode -ne 0) { throw 'Panel self-test failed' }
   runtime:
     name: Runtime (${{ matrix.os }})
     strategy:

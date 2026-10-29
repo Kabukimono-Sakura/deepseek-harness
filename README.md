@@ -16,6 +16,8 @@
 
 ## 开发
 
+本机可直接双击 `D:\Deepseek Harness\Deepseek Harness.exe`，用简易面板开关 QQ 聊天与桌宠、扫码登录、查看日志。关闭面板不会停止后台服务，详见[控制面板说明](docs/wiki/Control-panel.md)。
+
 需要 Node.js >=24.9 和 npm。普通测试无需安装 DSH，也无需账号凭据。
 
 ```sh

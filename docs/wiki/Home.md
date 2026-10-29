@@ -5,6 +5,7 @@ This is an independent local-first companion built around DeepSeek Harness, not 
 ## Start here
 
 - [Implementation plan](../../plan.md)
+- [Windows control panel](Control-panel.md)
 - [Local development](Development.md)
 - [Local conversation setup](Local-chat.md)
 - [Desktop pet](Desktop-pet.md)

@@ -8,8 +8,9 @@ import { JsonRpcProcess } from '../src/backends/jsonrpc-process.ts';
 import { DshBackend } from '../src/backends/dsh.ts';
 import { projectRoot, projectEnvironment, requireSupportedNode } from './project-env.mjs';
 import {companionSettings,createCompanion,startWakeups} from './companion-runtime.mjs';
+import {isExpectedProcess} from './process-identity.mjs';
 
-let client, store, router, activeRpc, companion, stopWakeups, stopTimer;
+let client, store, router, activeRpc, companion, stopWakeups, stopTimer, healthTimer;
 const lockPath=join(projectRoot,'data/qq-bridge.lock.json');
 const nonce=randomUUID();
 let ownsLock=false;
@@ -31,12 +32,15 @@ try {
     const previous=JSON.parse(readFileSync(lockPath,'utf8'));
     if(!Number.isInteger(previous.pid)||previous.pid<=0)throw new Error('Invalid QQ process lock; review it locally.');
     let active=true;try{process.kill(previous.pid,0);}catch(error){if(error.code==='ESRCH')active=false;}
+    if(active&&await isExpectedProcess(previous.pid,process.execPath,'scripts/qq.mjs')===false)active=false;
     if(active)throw new Error('Another QQ bridge process is active.');
     unlinkSync(lockPath);
   }
   writeFileSync(lockPath,JSON.stringify({pid:process.pid,nonce}),{flag:'wx'}); ownsLock=true;
   store=new QqStore(join(projectRoot,'data/qq.sqlite'),{statelessGeneration:Boolean(settings)});
   client=new OneBotClient({url:config.url,accountId:config.accountId,token:process.env[config.tokenEnv||'ONEBOT_ACCESS_TOKEN']??''});
+  const publishHealth=()=>{try{writeFileSync(join(projectRoot,'data/qq-health.json'),JSON.stringify({pid:process.pid,nonce,connected:client.ready,updatedAt:Date.now()}));}catch{}};
+  publishHealth();healthTimer=setInterval(publishHealth,3000);client.on('ready',publishHealth);client.on('offline',publishHealth);
   const workspace=join(projectRoot,'data/qq-workspace');mkdirSync(workspace,{recursive:true});
   if(settings)companion=createCompanion({store,settings,model:process.env.DEEPSEEK_MODEL||'deepseek-flash',request:(action,params)=>client.request(action,params),log:event=>console.log('[QQ] '+event)});
   router=new QqRouter({store,transport:client,policy:config,accountId:config.accountId,
@@ -71,6 +75,6 @@ try {
   });
 }catch(error){console.error(error.message);process.exitCode=1;}
 finally{
-  clearInterval(stopTimer);stopWakeups?.();await router?.stop();client?.stop();activeRpc?.close();companion?.close();store?.close();
+  clearInterval(stopTimer);clearInterval(healthTimer);stopWakeups?.();await router?.stop();client?.stop();activeRpc?.close();companion?.close();store?.close();
   if(ownsLock&&existsSync(lockPath)&&JSON.parse(readFileSync(lockPath,'utf8')).nonce===nonce)unlinkSync(lockPath);
 }

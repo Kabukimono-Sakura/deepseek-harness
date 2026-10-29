@@ -11,7 +11,7 @@
         "baseUrl": "https://api.deepseek.com",
         "apiKeyEnv": "DEEPSEEK_API_KEY",
         "model": "deepseek-flash",
-        "implementationStatus": "bridge-implemented-live-verification-pending"
+        "implementationStatus": "live-verified"
       },
       "codex-login": {
         "adapter": "codex-app-server",
@@ -35,6 +35,7 @@
   },
   "qq": {
     "enabled": false,
+    "accountId": "",
     "protocol": "onebot-v11",
     "transport": "forward-websocket",
     "url": "ws://127.0.0.1:3001/",

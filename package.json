@@ -13,6 +13,8 @@
     "check": "npm run typecheck && npm test && node scripts/check-public-files.mjs",
     "dsh": "node scripts/dsh.mjs",
     "chat": "node scripts/chat.mjs",
+    "qq": "node scripts/qq.mjs",
+    "test:live": "node scripts/live-check.mjs",
     "test:runtime": "node scripts/runtime-smoke.mjs",
     "test:sdk": "node scripts/sdk-smoke.mjs",
     "pet:install": "node scripts/install-pet.mjs",
@@ -22,6 +24,10 @@
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "@types/ws": "8.18.2",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "ws": "8.22.0"
   }
 }

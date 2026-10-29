@@ -37,4 +37,6 @@ The model runtime has no filesystem or shell tools. Only plain text is supported
 
 ## Acceptance status
 
-Offline transport and database tests cover account mismatch, event isolation, duplicate delivery, FIFO sessions, reconnect, lost receipts, crash recovery and removed contacts. These tests do not establish a live QQ connection. Real login and contact-side receipt must be verified separately. Groups remain unverified until an explicitly authorized test group exists.
+On 2026-10-29 the user completed real QQ login, the bridge verified the expected account, and the allowed test contact received replies. A subsequent message recalled the test word correctly; both the persisted reply and the user's client-side confirmation matched. Each QQ turn uses a fresh DSH process and resumes the same conversation session, so the two-turn test also exercised runtime restart continuity.
+
+All 31 offline tests passed, including account mismatch, event isolation, duplicate delivery, FIFO sessions, reconnect, receipt timeout, shutdown during generation, crash recovery and removed contacts. The implementation commit `0fe5e60` also passed all four Windows/Linux code and real DSH runtime CI jobs: [Actions run](https://github.com/Kabukimono-Sakura/deepseek-harness/actions/runs/40808903817). Live authentication and contact-side receipt were verified separately from CI. Groups remain disabled and unverified until an explicitly authorized test group exists.

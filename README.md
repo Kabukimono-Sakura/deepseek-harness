@@ -10,7 +10,7 @@
 - 已提供 DSH 独立安装、项目内数据目录、环境诊断，以及 Windows/Linux CI。
 - 已实现本地 CLI 会话桥接、同会话串行处理和 DSH 历史恢复入口，见[本地对话说明](docs/wiki/Local-chat.md)。
 - 已通过真实 DeepSeek API 对话和进程重启后的历史恢复验收；已接入桌宠状态与回复显示，见[桌宠说明](docs/wiki/Desktop-pet.md)。
-- 已实现 QQ WebSocket 传输、账号核验、SQLite 队列、去重和断线恢复，见[个人 QQ 说明](docs/wiki/Personal-QQ.md)。真实 QQ 收发仍待登录联调。
+- 已实现 QQ WebSocket 传输、账号核验、SQLite 队列、去重和断线恢复；2026-10-29 已通过真实私聊收发与测试词回忆验收，见[个人 QQ 说明](docs/wiki/Personal-QQ.md)。群聊尚未启用或实测。
 - 微信/B站收发和登录后端切换尚未完成。离线测试通过不代表平台已连接。
 
 ## 开发

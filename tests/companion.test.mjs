@@ -7,10 +7,11 @@ import {QqStore} from '../src/core/qq-store.ts';
 import {QqRouter} from '../src/core/qq-router.ts';
 import {OneBotRequestError} from '../src/channels/onebot-client.ts';
 import {parseOneBotMessage} from '../src/channels/onebot.ts';
-import {parseReplyPlan,activeTime,nextWake} from '../src/core/companion.ts';
+import {parseReplyPlan,activeTime,nextWake,requestsAvatar} from '../src/core/companion.ts';
+import {applyAvatar} from '../src/core/qq-avatar.ts';
 import {qqImageUrl,describeQqImages} from '../src/channels/qq-images.ts';
 import {startWakeups} from '../scripts/companion-runtime.mjs';
-import {validImageUrl} from '../scripts/companion-stickers.mjs';
+import {validImageUrl,validDisplayUrl} from '../scripts/companion-stickers.mjs';
 const policy={allowedUsers:['10002'],allowedGroups:[],requireMention:true};
 const event=id=>({post_type:'message',message_type:'private',sub_type:'friend',self_id:10001,user_id:10002,message_id:id,message:[{type:'text',data:{text:'hello '+id}}]});
 const parsed=id=>parseOneBotMessage(event(id),policy).message;
@@ -21,6 +22,29 @@ test('plans reject unknown images and malformed output; only proactive turns can
   assert.deepEqual(parseReplyPlan('{"messages":[{"text":"好呀"},{"stickerId":"known"}]}',ids).bubbles,[{text:'好呀'},{stickerId:'known'}]);
   for(const raw of ['hello','{"messages":[]}','{"messages":[{"stickerId":"https://evil.example"}]}','{"messages":[{"text":"x","stickerId":"known"}]}'])assert.throws(()=>parseReplyPlan(raw,ids));
   assert.equal(parseReplyPlan('{"messages":[]}',ids,true).bubbles.length,0);
+});
+
+test('avatar plans require explicit authorization and known image sources',()=>{
+  const raw='{"messages":[],"avatar":{"stickerId":"known"}}';
+  assert.throws(()=>parseReplyPlan(raw,new Set(['known']),false));
+  assert.deepEqual(parseReplyPlan(raw,new Set(['known']),false,true).avatar,{stickerId:'known'});
+  assert.throws(()=>parseReplyPlan('{"messages":[],"avatar":{"imageIndex":4}}',new Set(),false,true,1));
+  assert.deepEqual(parseReplyPlan('{"messages":[],"avatar":{"imageIndex":0}}',new Set(),false,true,1).avatar,{imageIndex:0});
+  assert.equal(requestsAvatar('记得给自己换个头像'),true);assert.equal(requestsAvatar('把这张设为头像'),true);
+  assert.equal(requestsAvatar('不要换头像'),false);assert.equal(requestsAvatar('你头像好可爱'),false);
+  assert.equal(validDisplayUrl('https://xn--pssy23gqgbz2d718b.com/submissions/large/deepseek/x.webp'),true);
+  assert.equal(validDisplayUrl('https://evil.test/submissions/large/deepseek/x.webp'),false);
+});
+
+test('avatar executes once and only reports the actual receipt; crash recovery never retries it',async t=>{
+  const db=database(t);let calls=0;
+  const options={authorized:true,eventId:'avatar1',choice:{stickerId:'known'},store:db.store,imageFile:async()=> 'file:///known-image.png',request:async(action,params)=>{calls++;assert.equal(action,'set_qq_avatar');assert.equal(params.file,'file:///known-image.png');return null;}};
+  await assert.rejects(()=>applyAvatar({...options,authorized:false}));assert.equal(calls,0);
+  assert.match(await applyAvatar(options),/接口确认成功/);assert.equal(calls,1);
+  await applyAvatar(options);assert.equal(calls,1);
+  assert.match(await applyAvatar({...options,eventId:'avatar2',request:async()=>{calls++;throw new Error('lost receipt');}}),/不能说换好了/);
+  const before=calls;db.restart();await applyAvatar({...options,store:db.store,eventId:'avatar2'});assert.equal(calls,before);
+  assert.match(await applyAvatar({...options,store:db.store,eventId:'avatar3',choice:{imageIndex:0},images:[{url:'file:///private.txt'}]}),/没有可用/);assert.equal(calls,before);
 });
 
 test('multi-bubble reconnect resumes at unsent bubble and never regenerates',async t=>{

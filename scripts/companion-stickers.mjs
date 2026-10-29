@@ -21,6 +21,9 @@ async function getJson(url){
 export function validImageUrl(value){
   try{const url=new URL(value);return url.protocol==='https:' && url.hostname==='raw.githubusercontent.com' && url.pathname.startsWith('/lmy414/ai-girl-stickers/') && !url.username && !url.password && !url.search && !url.hash;}catch{return false;}
 }
+export function validDisplayUrl(value){
+  try{const url=new URL(value);return url.origin===site&&url.pathname.startsWith('/submissions/large/')&&!url.username&&!url.password&&!url.search&&!url.hash;}catch{return false;}
+}
 export async function refreshCatalog(){
   mkdirSync(folder,{recursive:true});
   const first=await getJson(site+'/open-api/v1/works/page/1.json');
@@ -32,7 +35,7 @@ export async function refreshCatalog(){
   const items=pages.flatMap(page=>page.items).filter(item=>/^sticker_[a-f0-9]+$/.test(item.id)&&validImageUrl(item.image?.originalUrl)).map(item=>({
     id:item.id,name:String(item.name).slice(0,160),description:String(item.description??'').slice(0,800),tags:item.tags,
     characterId:item.characterId,categories:item.categoryIds,url:item.url,license:item.license,
-    imageUrl:item.image.originalUrl,sha256:item.image.sha256
+    imageUrl:item.image.originalUrl,displayUrl:validDisplayUrl(item.image.displayUrl)?item.image.displayUrl:undefined,sha256:item.image.sha256
   }));
   const temp=catalogPath+'.'+randomUUID()+'.tmp';
   writeFileSync(temp,JSON.stringify({fetchedAt:new Date().toISOString(),source:site,items}));renameSync(temp,catalogPath);
@@ -48,15 +51,28 @@ export async function stickerFile(catalog,id){
   if(!item||!validImageUrl(item.imageUrl))throw new Error('Unknown sticker');
   mkdirSync(folder,{recursive:true});
   const path=join(folder,id+'.img');
+  const sourcePath=path+'.source.json';
   const verify=()=>{
     const bytes=readFileSync(path);const header=bytes.subarray(0,16);
     const isImage=header.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))||header.subarray(0,3).equals(Buffer.from([255,216,255]))||/^GIF8[79]a/.test(header.toString())||(header.toString('ascii',0,4)==='RIFF'&&header.toString('ascii',8,12)==='WEBP');
     if(!bytes.length||bytes.length>20_000_000||!isImage)throw new Error('Invalid sticker file');
-    if(item.sha256&&createHash('sha256').update(bytes).digest('hex')!==item.sha256)throw new Error('Sticker hash mismatch');
+    const source=existsSync(sourcePath)?JSON.parse(readFileSync(sourcePath,'utf8')):null;
+    const expected=source?.variant==='display'?source.sha256:item.sha256;
+    if(expected&&createHash('sha256').update(bytes).digest('hex')!==expected)throw new Error('Sticker hash mismatch');
   };
   if(!existsSync(path)){
-    const part=path+'.'+randomUUID()+'.part';
-    try{await run(process.platform==='win32'?'curl.exe':'curl',['--silent','--show-error','--fail','--proto','=https','--connect-timeout','10','--max-time','40','--max-filesize','20000000',item.imageUrl,'--output',part],{windowsHide:true});renameSync(part,path);}finally{if(existsSync(part))unlinkSync(part);}
+    const sources=[{url:item.imageUrl,variant:'original'},...(validDisplayUrl(item.displayUrl)?[{url:item.displayUrl,variant:'display'}]:[])];
+    let downloaded=false;
+    for(const source of sources){
+      const part=path+'.'+randomUUID()+'.part';
+      try{
+        await run(process.platform==='win32'?'curl.exe':'curl',['--silent','--show-error','--fail','--proto','=https','--connect-timeout','5','--max-time','15','--max-filesize','20000000',source.url,'--output',part],{windowsHide:true});
+        renameSync(part,path);writeFileSync(sourcePath,JSON.stringify({variant:source.variant,url:source.url,sha256:createHash('sha256').update(readFileSync(path)).digest('hex')}));
+        verify();downloaded=true;break;
+      }catch{if(existsSync(path))unlinkSync(path);if(existsSync(sourcePath))unlinkSync(sourcePath);}
+      finally{if(existsSync(part))unlinkSync(part);}
+    }
+    if(!downloaded)throw new Error('Sticker download unavailable from original and display sources');
   }
   try{verify();}catch(error){unlinkSync(path);throw error;}
   return pathToFileURL(path).href;

@@ -29,7 +29,11 @@ export class JsonRpcProcess implements RpcPeer {
   }) {
     this.#timeoutMs = options.timeoutMs ?? 180_000;
     this.#maxFrameBytes = options.maxFrameBytes ?? 8 * 1024 * 1024;
-    this.#child = spawn(command, args, { cwd: options.cwd, env: options.env, stdio: 'pipe', windowsHide: true });
+    const childEnvironment = {...(options.env ?? process.env)};
+    // These children are deliberately terminated in transport tests. Inheriting
+    // V8 coverage can leave empty child reports on Windows and fail the parent suite.
+    delete childEnvironment.NODE_V8_COVERAGE;
+    this.#child = spawn(command, args, { cwd: options.cwd, env: childEnvironment, stdio: 'pipe', windowsHide: true });
     this.#child.stdout.setEncoding('utf8');
     this.#child.stdout.on('data', (chunk: string) => this.#receive(chunk));
     // Drain diagnostics, but do not expose raw provider errors or environment secrets.

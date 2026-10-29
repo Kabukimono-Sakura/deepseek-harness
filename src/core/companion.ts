@@ -1,8 +1,9 @@
 /** Output is data: only the transport creates QQ message segments. */
 export type Bubble = { text: string } | { stickerId: string };
-export type ReplyPlan = { bubbles: Bubble[]; reflection?: string };
+export type AvatarChoice = {stickerId: string} | {imageIndex: number};
+export type ReplyPlan = { bubbles: Bubble[]; reflection?: string; avatar?: AvatarChoice };
 
-export function parseReplyPlan(raw: string, stickerIds: ReadonlySet<string>, proactive = false): ReplyPlan {
+export function parseReplyPlan(raw: string, stickerIds: ReadonlySet<string>, proactive = false, avatarAllowed = false, imageCount = 0): ReplyPlan {
   const clean = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   const value = JSON.parse(clean);
   if (!value || !Array.isArray(value.messages) || value.messages.length > 24) throw new Error('Invalid reply plan');
@@ -13,9 +14,21 @@ export function parseReplyPlan(raw: string, stickerIds: ReadonlySet<string>, pro
     if (typeof item.stickerId === 'string' && stickerIds.has(item.stickerId) && !('text' in item)) return {stickerId: item.stickerId};
     throw new Error('Unknown sticker or invalid text');
   });
-  if (!proactive && !bubbles.length) throw new Error('Empty conversational reply');
+  let avatar: AvatarChoice | undefined;
+  if(value.avatar!==undefined){
+    if(!avatarAllowed || !value.avatar || typeof value.avatar!=='object')throw new Error('Avatar operation not authorized');
+    if(typeof value.avatar.stickerId==='string'&&stickerIds.has(value.avatar.stickerId)&&!('imageIndex' in value.avatar))avatar={stickerId:value.avatar.stickerId};
+    else if(Number.isInteger(value.avatar.imageIndex)&&value.avatar.imageIndex>=0&&value.avatar.imageIndex<imageCount&&!('stickerId' in value.avatar))avatar={imageIndex:value.avatar.imageIndex};
+    else throw new Error('Invalid avatar source');
+  }
+  if (!proactive && !bubbles.length && !avatar) throw new Error('Empty conversational reply');
   const reflection = typeof value.reflection === 'string' ? value.reflection.trim().slice(0, 1500) : undefined;
-  return {bubbles, reflection};
+  return {bubbles, reflection, ...(avatar ? {avatar} : {})};
+}
+
+export function requestsAvatar(text: string): boolean {
+  if(/不要|不想|不用|不需要|不许|别换|别改|don't|do not/i.test(text))return false;
+  return /(?:换|改|设置|设为|作为|当)[\s\S]{0,16}头像|头像[\s\S]{0,12}(?:换成|改成|用这|设为)|(?:change|set|update).{0,20}(?:avatar|profile picture)/i.test(text);
 }
 
 export function planText(plan: ReplyPlan): string {

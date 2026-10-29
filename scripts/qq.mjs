@@ -38,7 +38,7 @@ try {
   store=new QqStore(join(projectRoot,'data/qq.sqlite'),{statelessGeneration:Boolean(settings)});
   client=new OneBotClient({url:config.url,accountId:config.accountId,token:process.env[config.tokenEnv||'ONEBOT_ACCESS_TOKEN']??''});
   const workspace=join(projectRoot,'data/qq-workspace');mkdirSync(workspace,{recursive:true});
-  if(settings)companion=createCompanion({store,settings,model:process.env.DEEPSEEK_MODEL||'deepseek-flash',log:event=>console.log('[QQ] '+event)});
+  if(settings)companion=createCompanion({store,settings,model:process.env.DEEPSEEK_MODEL||'deepseek-flash',request:(action,params)=>client.request(action,params),log:event=>console.log('[QQ] '+event)});
   router=new QqRouter({store,transport:client,policy:config,accountId:config.accountId,
     log:event=>console.log('[QQ] '+event),
     ...(companion?{settleMs:1200,bubbleDelayMs:()=>700+Math.random()*1300,yieldToNewMessages:true,statelessGeneration:true,imageFile:companion.imageFile}:{}),

@@ -23,9 +23,11 @@ export class QqStore {
       CREATE TABLE IF NOT EXISTS reflections(event_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS wakeups(conversation_id TEXT PRIMARY KEY, due_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS image_observations(event_id TEXT PRIMARY KEY, description TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS profile_actions(event_id TEXT PRIMARY KEY, choice TEXT NOT NULL, state TEXT NOT NULL, updated_at INTEGER NOT NULL);
       UPDATE conversations SET blocked=1 WHERE id IN (SELECT conversation_id FROM inbox WHERE state='processing');
       UPDATE inbox SET state='uncertain' WHERE state IN ('processing','sending');
       UPDATE outbox SET state='uncertain' WHERE state='sending';`);
+    this.#db.exec("UPDATE profile_actions SET state='uncertain' WHERE state='sending'");
     if(options.statelessGeneration)this.#db.exec('UPDATE conversations SET blocked=0');
   }
   accept(message: IncomingMessage): 'accepted' | 'duplicate' | 'full' {
@@ -88,6 +90,9 @@ export class QqStore {
   }
   setWake(conversationId: string, due: number): void { this.#db.prepare('INSERT OR REPLACE INTO wakeups VALUES(?,?)').run(conversationId,due); }
   observeImages(eventId: string, description: string): void { this.#db.prepare('INSERT OR REPLACE INTO image_observations VALUES(?,?)').run(eventId,description); }
+  avatarAction(eventId: string): {state: string} | undefined { return this.#db.prepare('SELECT state FROM profile_actions WHERE event_id=?').get(eventId) as {state: string}|undefined; }
+  beginAvatar(eventId: string, choice: unknown): boolean { return this.#db.prepare("INSERT OR IGNORE INTO profile_actions VALUES(?,?,'sending',?)").run(eventId,JSON.stringify(choice),Date.now()).changes===1; }
+  finishAvatar(eventId: string, state: string): void { this.#db.prepare('UPDATE profile_actions SET state=?,updated_at=? WHERE event_id=?').run(state,Date.now(),eventId); }
   memory(conversationId: string, query: string, excludeEvent?: string): string {
     const rows=this.#db.prepare("SELECT * FROM inbox WHERE conversation_id=? AND event_id<>? AND state NOT IN ('received','processing') ORDER BY created_at DESC,rowid DESC").all(conversationId,excludeEvent??'') as InboxRow[];
     const chosen=new Set(rows.slice(0,20));
@@ -99,7 +104,8 @@ export class QqStore {
       const hasOutbox=this.#db.prepare('SELECT 1 FROM outbox WHERE event_id=? LIMIT 1').get(row.event_id);
       const delivered=sent.length ? sent.map(item=>{const b=JSON.parse(item.payload as string) as Bubble;return 'text' in b?b.text:`[表情:${b.stickerId}]`;}).join('\n') : row.state==='sent' && !hasOutbox ? row.reply : '';
       const observation=this.#db.prepare('SELECT description FROM image_observations WHERE event_id=?').get(row.event_id)?.description;
-      return {sourceId:row.event_id,time:new Date(row.created_at).toISOString(),source:msg.source??'user',incoming:msg.text,imageObservation:observation,delivered:delivered||'',deliveryState:row.state};
+      const profileAction=this.#db.prepare('SELECT state,choice FROM profile_actions WHERE event_id=?').get(row.event_id);
+      return {sourceId:row.event_id,time:new Date(row.created_at).toISOString(),source:msg.source??'user',incoming:msg.text,imageObservation:observation,profileAction,delivered:delivered||'',deliveryState:row.state};
     });
     const notes=this.#db.prepare('SELECT event_id AS sourceId,text,created_at FROM reflections WHERE conversation_id=? ORDER BY created_at DESC LIMIT 15').all(conversationId);
     // Bound the prompt, never the underlying archive. Each retained record remains valid JSON.

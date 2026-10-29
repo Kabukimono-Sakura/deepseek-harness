@@ -8,6 +8,8 @@ Important behaviors to cover as implemented: user/group isolation, duplicate del
 
 The tracked-path guard is not a complete secret scanner; review the staged diff before publishing.
 
+The companion iteration adds tests for structured output validation, per-bubble reconnect and uncertain delivery, superseded replies, failed image preparation, Chinese archive retrieval, contact isolation, daytime wakeups, restart backlog, expired proactive work and image URL/vision failures. All 41 offline tests passed locally on 2026-10-29. Separate live checks verified the model-authored QQ bio, archived-word recall, text/image delivery receipts and official DeepSeek vision on the delivered image. Human feedback on conversational tone is tracked separately from protocol correctness.
+
 `npm run test:live` explicitly uses the local DeepSeek key and incurs API usage. It checks a real reply and recall after restarting DSH, then writes a private acceptance record to `data/live-check/last-result.json`. It is never invoked by CI. This live check passed on the development machine on 2026-10-28.
 
 `npm run test:runtime` starts the actual DSH Web runtime and checks local authentication. `npm run test:sdk` uses the actual DSH SDK runtime with a loopback-only simulated Messages provider: it checks text output, the absence of coding tools, process restart, and restored conversation history. The SDK test uses its own temporary DSH home and a fictitious key, never the user's `.env`. Both runtime checks run on Windows and Ubuntu in CI. They do not prove live DeepSeek account access.

@@ -1,9 +1,11 @@
 // Wire protocol references are recorded in docs/wiki/Architecture.md.
 // No network calls or model calls belong in this parser.
+import {qqImageUrl} from './qq-images.ts';
 export interface OneBotPolicy {
   allowedUsers: readonly string[];
   allowedGroups: readonly string[];
   requireMention: boolean;
+  acceptImages?: boolean;
 }
 
 export interface IncomingMessage {
@@ -14,6 +16,9 @@ export interface IncomingMessage {
   eventId: string;
   text: string;
   replyTarget: { kind: 'private' | 'group'; id: string };
+  source?: 'user' | 'proactive';
+  expiresAt?: number;
+  images?: { file: string; summary: string; url?: string }[];
 }
 
 type ParseResult =
@@ -53,6 +58,7 @@ export function parseOneBotMessage(input: unknown, policy: OneBotPolicy): ParseR
   if (input.message.length > 128) return reject('too-many-segments');
   let mentioned = false;
   let text = '';
+  const images: { file: string; summary: string; url?: string }[] = [];
   for (const segment of input.message) {
     if (!record(segment) || !record(segment.data)) return reject('invalid-segment');
     if (segment.type === 'text') {
@@ -61,6 +67,9 @@ export function parseOneBotMessage(input: unknown, policy: OneBotPolicy): ParseR
       if (text.length > 16_000) return reject('text-too-long');
     } else if (segment.type === 'at') {
       if (id(segment.data.qq) === accountId) mentioned = true;
+    } else if (segment.type === 'image' && policy.acceptImages) {
+      images.push({file: typeof segment.data.file === 'string' ? segment.data.file.slice(0, 256) : '',
+        summary: typeof segment.data.summary === 'string' ? segment.data.summary.slice(0, 200) : '[图片]',url:qqImageUrl(segment.data.url)});
     } else {
       // Reject rather than silently discard an image, reply quote or other context.
       return reject('unsupported-segment');
@@ -68,6 +77,8 @@ export function parseOneBotMessage(input: unknown, policy: OneBotPolicy): ParseR
   }
   if (kind === 'group' && policy.requireMention && !mentioned) return reject('mention-required');
   text = text.trim();
+  if (images.length) text += '\n[收到 '+images.length+' 张图片；QQ 摘要并不等于画面理解：' + JSON.stringify(images.map(({summary})=>summary)) + ']';
+  if (text.length > 16_000) return reject('text-too-long');
   if (!text) return reject('empty-text');
   const conversationId = JSON.stringify(['qq-onebot', accountId, kind, targetId]);
   return {
@@ -75,7 +86,7 @@ export function parseOneBotMessage(input: unknown, policy: OneBotPolicy): ParseR
     message: {
       channel: 'qq-onebot', accountId, senderId, conversationId,
       eventId: JSON.stringify([conversationId, messageId]),
-      text, replyTarget: { kind, id: targetId },
+      text, replyTarget: { kind, id: targetId }, source: 'user', ...(images.length ? {images} : {}),
     },
   };
 }

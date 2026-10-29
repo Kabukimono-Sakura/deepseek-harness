@@ -29,11 +29,11 @@ The bridge prints `authenticated account verified` only after a successful accou
 
 ## Delivery and recovery
 
-`data/qq.sqlite` stores conversation/session mappings, incoming text and replies. Duplicate events do not trigger another model call. Processing is FIFO, with a maximum of 100 pending messages and 10 admitted new messages per minute. Private and group conversations have separate identities. Replies are always bound to the original target; generated CQ markup remains ordinary text.
+`data/qq.sqlite` stores conversation/session mappings, incoming text and replies. Duplicate events do not trigger another model call. The queue holds up to 100 pending messages. Optional companion mode settles consecutive input before generating a reply. Private and group conversations have separate identities. Replies are always bound to the original target; generated CQ markup remains ordinary text.
 
-A completed reply waits locally while the transport is disconnected. A send with an unknown outcome is marked `uncertain` and is never automatically repeated. A crash during generation blocks that conversation for local review, because the model history may already have advanced. Review the database locally; the prototype does not yet provide a recovery UI or an automatic retry command. Never blindly reset a `sending`/`uncertain` row to resend it.
+A completed reply waits locally while the transport is disconnected. A send with an unknown outcome is marked `uncertain` and is never automatically repeated. In legacy session-resume mode, a crash during generation blocks that conversation for local review, because the model history may already have advanced. Companion mode builds each turn from the archive instead, so subsequent incoming turns can continue. Review the database locally; the prototype does not yet provide a recovery UI or an automatic retry command. Never blindly reset a `sending`/`uncertain` row to resend it.
 
-The model runtime has no filesystem or shell tools. Only plain text is supported. Replies longer than 4000 characters are retained locally and replaced on QQ with an explicit length-limit notice. Attachments, temporary conversations and anonymous group messages are ignored. The bridge does not project private QQ text onto the desktop pet.
+The model runtime has no filesystem or shell tools. Default mode accepts plain text; [companion mode](Companion.md) additionally supports images, separate message bubbles, scoped archive retrieval and proactive contact. A text bubble over 4000 characters is retained locally but not sent. Temporary conversations and anonymous group messages are ignored. The bridge does not project private QQ text onto the desktop pet.
 
 ## Acceptance status
 

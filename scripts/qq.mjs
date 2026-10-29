@@ -7,8 +7,9 @@ import { QqRouter } from '../src/core/qq-router.ts';
 import { JsonRpcProcess } from '../src/backends/jsonrpc-process.ts';
 import { DshBackend } from '../src/backends/dsh.ts';
 import { projectRoot, projectEnvironment, requireSupportedNode } from './project-env.mjs';
+import {companionSettings,createCompanion,startWakeups} from './companion-runtime.mjs';
 
-let client, store, router, activeRpc;
+let client, store, router, activeRpc, companion, stopWakeups, stopTimer;
 const lockPath=join(projectRoot,'data/qq-bridge.lock.json');
 const nonce=randomUUID();
 let ownsLock=false;
@@ -16,6 +17,9 @@ try {
   requireSupportedNode();
   if(existsSync(join(projectRoot,'.env')))process.loadEnvFile(join(projectRoot,'.env'));
   const config=JSON.parse(readFileSync(join(projectRoot,'config/local.json'),'utf8')).qq;
+  const settings=companionSettings();
+  if(settings && (settings.accountId!==config.accountId || !config.allowedUsers.includes(settings.ownerId)))throw new Error('Companion account/owner must match the QQ allowlist.');
+  if(settings)config.acceptImages=true;
   if(config.enabled!==true)throw new Error('Enable qq in config/local.json after configuring NapCat.');
   const validIds=value=>Array.isArray(value)&&value.every(id=>typeof id==='string'&&/^[1-9]\d*$/.test(id));
   if(!validIds(config.allowedUsers)||!validIds(config.allowedGroups)||config.allowedUsers.length===0||typeof config.requireMention!=='boolean')throw new Error('Configure explicit QQ contact/group allowlists first.');
@@ -31,12 +35,15 @@ try {
     unlinkSync(lockPath);
   }
   writeFileSync(lockPath,JSON.stringify({pid:process.pid,nonce}),{flag:'wx'}); ownsLock=true;
-  store=new QqStore(join(projectRoot,'data/qq.sqlite'));
+  store=new QqStore(join(projectRoot,'data/qq.sqlite'),{statelessGeneration:Boolean(settings)});
   client=new OneBotClient({url:config.url,accountId:config.accountId,token:process.env[config.tokenEnv||'ONEBOT_ACCESS_TOKEN']??''});
   const workspace=join(projectRoot,'data/qq-workspace');mkdirSync(workspace,{recursive:true});
+  if(settings)companion=createCompanion({store,settings,model:process.env.DEEPSEEK_MODEL||'deepseek-flash',log:event=>console.log('[QQ] '+event)});
   router=new QqRouter({store,transport:client,policy:config,accountId:config.accountId,
     log:event=>console.log('[QQ] '+event),
+    ...(companion?{settleMs:1200,bubbleDelayMs:()=>700+Math.random()*1300,yieldToNewMessages:true,statelessGeneration:true,imageFile:companion.imageFile}:{}),
     generate:async(conversation,text)=>{
+      if(companion)return companion.generate(conversation,text);
       const rpc=new JsonRpcProcess(process.execPath,[cli,'--profile','sdk-minimal','--patch',join(projectRoot,'config/companion.patch.yml')],{cwd:workspace,env:projectEnvironment(),timeoutMs:180_000});
       activeRpc=rpc;
       try{
@@ -50,8 +57,12 @@ try {
   client.on('ready',()=>{console.log('[QQ] authenticated account verified; ready for allowed contacts');void router.pump();});
   client.on('offline',()=>console.log('[QQ] disconnected; reconnecting unless stopped'));
   client.on('message',event=>router.receive(event));
+  if(companion){console.log('[QQ] companion enabled; sticker catalog: '+companion.catalogSize);stopWakeups=startWakeups({settings,store,router,client,log:event=>console.log('[QQ] '+event)});}
   await new Promise(resolve=>{
     process.once('SIGINT',resolve);process.once('SIGTERM',resolve);
+    // A nonce-scoped stop request allows a graceful Windows restart without killing an in-flight turn.
+    const stopPath=join(projectRoot,'data/qq-stop.json');
+    stopTimer=setInterval(()=>{if(existsSync(stopPath)){try{if(JSON.parse(readFileSync(stopPath,'utf8')).nonce===nonce){unlinkSync(stopPath);resolve();}}catch{}}},500);
     client.on('diagnostic',code=>{
       console.log('[QQ] '+code);
       if(code==='account-mismatch'){process.exitCode=1;resolve();}
@@ -60,6 +71,6 @@ try {
   });
 }catch(error){console.error(error.message);process.exitCode=1;}
 finally{
-  client?.stop();activeRpc?.close();await router?.stop();store?.close();
+  clearInterval(stopTimer);stopWakeups?.();await router?.stop();client?.stop();activeRpc?.close();companion?.close();store?.close();
   if(ownsLock&&existsSync(lockPath)&&JSON.parse(readFileSync(lockPath,'utf8')).nonce===nonce)unlinkSync(lockPath);
 }

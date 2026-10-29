@@ -3,6 +3,7 @@ const mode = process.argv[2];
 const input = createInterface({ input: process.stdin });
 for await (const line of input) {
   const request = JSON.parse(line);
+  if (mode === 'coverage-env') { process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:request.id,result:process.env.NODE_V8_COVERAGE??null})+'\n');continue; }
   if (mode === 'hang') continue;
   if (mode === 'exit') process.exit(1);
   if (mode === 'bad') { process.stdout.write('not-json\n'); continue; }

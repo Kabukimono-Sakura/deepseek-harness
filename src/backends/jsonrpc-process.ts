@@ -32,7 +32,8 @@ export class JsonRpcProcess implements RpcPeer {
     const childEnvironment = {...(options.env ?? process.env)};
     // These children are deliberately terminated in transport tests. Inheriting
     // V8 coverage can leave empty child reports on Windows and fail the parent suite.
-    delete childEnvironment.NODE_V8_COVERAGE;
+    // Node copies the parent's value back when the key is absent, so use an explicit empty value.
+    childEnvironment.NODE_V8_COVERAGE = '';
     this.#child = spawn(command, args, { cwd: options.cwd, env: childEnvironment, stdio: 'pipe', windowsHide: true });
     this.#child.stdout.setEncoding('utf8');
     this.#child.stdout.on('data', (chunk: string) => this.#receive(chunk));

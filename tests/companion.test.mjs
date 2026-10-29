@@ -32,6 +32,7 @@ test('avatar plans require explicit authorization and known image sources',()=>{
   assert.deepEqual(parseReplyPlan('{"messages":[],"avatar":{"imageIndex":0}}',new Set(),false,true,1).avatar,{imageIndex:0});
   assert.equal(requestsAvatar('记得给自己换个头像'),true);assert.equal(requestsAvatar('把这张设为头像'),true);
   assert.equal(requestsAvatar('不要换头像'),false);assert.equal(requestsAvatar('你头像好可爱'),false);
+  assert.equal(requestsAvatar('你换头像了吗'),false);assert.equal(requestsAvatar('头像换好了吗'),false);
   assert.equal(validDisplayUrl('https://xn--pssy23gqgbz2d718b.com/submissions/large/deepseek/x.webp'),true);
   assert.equal(validDisplayUrl('https://evil.test/submissions/large/deepseek/x.webp'),false);
 });

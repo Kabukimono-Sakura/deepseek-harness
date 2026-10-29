@@ -9,6 +9,12 @@ function child(mode, options = {}) {
   });
 }
 
+test('terminated RPC children do not inherit the parent V8 coverage output',async t=>{
+  const rpc=child('coverage-env',{env:{...process.env,NODE_V8_COVERAGE:'unused-coverage-path'}});
+  t.after(()=>rpc.close());
+  assert.equal(await rpc.request('environment'),'');
+});
+
 test('stdio handles partial UTF-8 frames and concurrent request IDs', async t => {
   const rpc = child('ok');
   t.after(() => rpc.close());

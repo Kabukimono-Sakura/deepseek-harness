@@ -28,6 +28,7 @@ export function parseReplyPlan(raw: string, stickerIds: ReadonlySet<string>, pro
 
 export function requestsAvatar(text: string): boolean {
   if(/不要|不想|不用|不需要|不许|别换|别改|don't|do not/i.test(text))return false;
+  if(/换(?:好|了|过).{0,8}头像|头像.{0,8}(?:换好|换了|换过)|换(?:个)?头像(?:了吗|了没|没有)/.test(text))return false;
   return /(?:换|改|设置|设为|作为|当)[\s\S]{0,16}头像|头像[\s\S]{0,12}(?:换成|改成|用这|设为)|(?:change|set|update).{0,20}(?:avatar|profile picture)/i.test(text);
 }
 

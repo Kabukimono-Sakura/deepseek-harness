@@ -62,4 +62,3 @@ export async function stickerFile(catalog,id){
   return pathToFileURL(path).href;
 }
 if(process.argv.includes('--refresh'))console.log(JSON.stringify({stickers:await refreshCatalog()}));
-

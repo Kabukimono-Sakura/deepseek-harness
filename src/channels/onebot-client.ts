@@ -59,6 +59,8 @@ export class OneBotClient extends EventEmitter {
         else pending.reject(new OneBotRequestError('OneBot API did not confirm success.', true));
       } else if (this.#ready && data.post_type === 'message' && String(data.self_id) === this.#accountId) {
         this.emit('message', data);
+      } else if(this.#ready && data.post_type==='request' && data.request_type==='friend' && String(data.self_id)===this.#accountId){
+        this.emit('friend-request',data);
       }
     });
     socket.on('open', () => { void this.#verify(socket); });

@@ -6,6 +6,7 @@ import {promisify} from 'node:util';
 import {createConnection} from 'node:net';
 import {projectRoot,projectEnvironment} from './project-env.mjs';
 import {isExpectedProcess} from './process-identity.mjs';
+import {randomUUID} from 'node:crypto';
 const exec=promisify(execFile);
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const local=name=>join(projectRoot,name);
@@ -76,11 +77,21 @@ async function petStop(){
 }
 async function login(){
   await ensureNapcat();
-  launch('scripts/qq-login.mjs',[],'qq-login');
+  const existing=json('tmp/qq-login-viewer.json');
+  if(existing?.version===2){
+    try{
+      const parsed=new URL(existing.url);
+      if(parsed.hostname==='127.0.0.1'&&parsed.protocol==='http:'){
+        const response=await fetch(existing.url,{signal:AbortSignal.timeout(1000),redirect:'error'});
+        if(response.ok&&response.headers.get('x-login-viewer')==='2')return {message:'已打开实时扫码页。',url:existing.url};
+      }
+    }catch{}
+  }
+  const instance=randomUUID();launch('scripts/qq-login.mjs',[instance],'qq-login');
   if(!await until(async()=>{
-    try{const url=readFileSync(local('tmp/qq-login-url.txt'),'utf8').trim();const parsed=new URL(url);if(parsed.hostname!=='127.0.0.1'||parsed.protocol!=='http:')return false;return (await fetch(url,{signal:AbortSignal.timeout(1000),redirect:'error'})).ok;}catch{return false;}
+    try{const viewer=json('tmp/qq-login-viewer.json');if(viewer?.instance!==instance||viewer.version!==2)return false;const parsed=new URL(viewer.url);if(parsed.hostname!=='127.0.0.1'||parsed.protocol!=='http:')return false;return (await fetch(viewer.url,{signal:AbortSignal.timeout(1000),redirect:'error'})).ok;}catch{return false;}
   },10000))throw new Error('扫码页面未准备好，请稍后重试。');
-  return {message:'已打开实时扫码页，使用 Agent QQ 扫码并在手机确认。',url:readFileSync(local('tmp/qq-login-url.txt'),'utf8').trim()};
+  return {message:'已打开实时扫码页，使用 Agent QQ 扫码并在手机确认。',url:json('tmp/qq-login-viewer.json').url};
 }
 export async function command(action){
   switch(action){

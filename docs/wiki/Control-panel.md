@@ -26,7 +26,7 @@ The executable is a small .NET Framework Windows Forms launcher. Keep it in the 
 
 The build uses the Windows .NET Framework compiler already installed on the machine and requests ordinary user privileges. The generated root EXE is ignored by Git; source and manifest are versioned under `src/panel`.
 
-Windows CI compiles the panel and runs `--self-test`. Node tests cover service-state mapping, unsupported commands and recycled PID identity. On the development machine, real QQ disable/enable, desktop show/hide, and the local QR HTML/PNG endpoints were checked. A native Windows Forms render was inspected to correct text clipping. The external UI automation helper could not initialize in this session; automated physical button-click coverage was not claimed.
+Windows CI compiles the panel and runs `--self-test`. Node tests cover service-state mapping, unsupported commands and recycled PID identity. On the development machine, real QQ disable/enable, desktop show/hide, and the local QR HTML/SVG endpoints were checked. A native Windows Forms render was inspected to correct text clipping. The external UI automation helper could not initialize in this session; automated physical button-click coverage was not claimed.
 
 CLI equivalents, useful for diagnosis:
 
@@ -39,3 +39,5 @@ CLI equivalents, useful for diagnosis:
 ```
 
 Logs are private files in `tmp/`; they may contain local authentication URLs and should not be posted publicly without review.
+
+The login page now uses live NapCat status and QR generation instead of the cached PNG. It automatically renews a waiting code after 90 seconds and offers “重新生成二维码”. Reopening login reuses the active viewer to avoid competing refreshes. On service errors the old QR is hidden; successful login is shown on the page.

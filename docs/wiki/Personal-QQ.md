@@ -17,7 +17,7 @@ The Windows helper `scripts/napcat-configure.mjs` writes private configuration t
 
 The installer verifies the fixed release's SHA256 before extraction. The launcher starts a hidden background process, puts NapCat work files and its child process profile under `data/napcat`, and records the PID in `tmp/napcat-node.pid`. WebUI's token is in `data/napcat/config/webui.json`; do not share it. The user's normal QQ installation/profile is separate. The DLL-based Shell launcher failed with a missing entry module on the development machine; the upstream portable Node package successfully reached QR login on 2026-10-29.
 
-For an expiring QR image, run `node scripts/qq-login.mjs` and open the address saved in `tmp/qq-login-url.txt` in your local browser. This temporary viewer reads the current PNG every two seconds, uses an unpredictable URL, listens only on loopback, and stops after 15 minutes. It does not perform QQ authentication. Do not share its URL or image. The current account successfully completed manual login and the bridge's account verification on 2026-10-29.
+For an expiring QR image, run `node scripts/qq-login.mjs` and open the address saved in `tmp/qq-login-url.txt` in your local browser. This viewer polls NapCat login status every two seconds and generates SVG from the current QR payload. It requests a new code on entry and after 90 seconds while waiting, with a manual refresh button. Phone confirmation is preserved. It uses an unpredictable loopback URL, disables caching, and stops after 30 minutes without page requests. WebUI credentials remain server-side. It does not perform QQ authentication. Do not share its URL or image. The current account successfully completed manual login and the bridge's account verification on 2026-10-29.
 
 After manually completing QQ login, set `qq.enabled` to true and run:
 
@@ -40,3 +40,9 @@ The model runtime has no filesystem or shell tools. Default mode accepts plain t
 On 2026-10-29 the user completed real QQ login, the bridge verified the expected account, and the allowed test contact received replies. A subsequent message recalled the test word correctly; both the persisted reply and the user's client-side confirmation matched. Each QQ turn uses a fresh DSH process and resumes the same conversation session, so the two-turn test also exercised runtime restart continuity.
 
 All 31 offline tests passed, including account mismatch, event isolation, duplicate delivery, FIFO sessions, reconnect, receipt timeout, shutdown during generation, crash recovery and removed contacts. The implementation commit `0fe5e60` also passed all four Windows/Linux code and real DSH runtime CI jobs: [Actions run](https://github.com/Kabukimono-Sakura/deepseek-harness/actions/runs/40808903817). Live authentication and contact-side receipt were verified separately from CI. Groups remain disabled and unverified until an explicitly authorized test group exists.
+
+## Allowlisted friend requests
+
+Set `qq.autoApproveFriends` to true to accept incoming friend requests from `allowedUsers` while the bridge is enabled and connected. Account verification and the allowlist are checked before approval; group invitations and other users are ignored. Requests are persisted and deduplicated. An unknown approval outcome is retained for local review, never blindly repeated. Requests sent before the bridge was connected may need to be sent again.
+
+Companion mode reserves the private owner persona and “主人” for the configured owner account. Other conversations use a polite, formal persona with “您” and “先生／女士”, honoring an explicitly stated form of address without guessing gender. Private owner persona text is not loaded for these turns; archive retrieval remains conversation-scoped.

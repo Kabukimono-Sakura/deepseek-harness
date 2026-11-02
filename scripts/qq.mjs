@@ -9,8 +9,9 @@ import { DshBackend } from '../src/backends/dsh.ts';
 import { projectRoot, projectEnvironment, requireSupportedNode } from './project-env.mjs';
 import {companionSettings,createCompanion,startWakeups} from './companion-runtime.mjs';
 import {isExpectedProcess} from './process-identity.mjs';
+import {FriendApprover} from '../src/core/qq-friends.ts';
 
-let client, store, router, activeRpc, companion, stopWakeups, stopTimer, healthTimer;
+let client, store, router, activeRpc, companion, stopWakeups, stopTimer, healthTimer, friends;
 const lockPath=join(projectRoot,'data/qq-bridge.lock.json');
 const nonce=randomUUID();
 let ownsLock=false;
@@ -58,7 +59,9 @@ try {
       }finally{rpc.close();if(activeRpc===rpc)activeRpc=undefined;}
     },
   });
-  client.on('ready',()=>{console.log('[QQ] authenticated account verified; ready for allowed contacts');void router.pump();});
+  friends=new FriendApprover({store,transport:client,accountId:config.accountId,allowedUsers:config.allowedUsers,enabled:config.autoApproveFriends===true,log:event=>console.log('[QQ] '+event)});
+  client.on('friend-request',event=>friends.receive(event));
+  client.on('ready',()=>{console.log('[QQ] authenticated account verified; ready for allowed contacts');void router.pump();void friends.pump();});
   client.on('offline',()=>console.log('[QQ] disconnected; reconnecting unless stopped'));
   client.on('message',event=>router.receive(event));
   if(companion){console.log('[QQ] companion enabled; sticker catalog: '+companion.catalogSize);stopWakeups=startWakeups({settings,store,router,client,log:event=>console.log('[QQ] '+event)});}
@@ -75,6 +78,6 @@ try {
   });
 }catch(error){console.error(error.message);process.exitCode=1;}
 finally{
-  clearInterval(stopTimer);clearInterval(healthTimer);stopWakeups?.();await router?.stop();client?.stop();activeRpc?.close();companion?.close();store?.close();
+  clearInterval(stopTimer);clearInterval(healthTimer);stopWakeups?.();await friends?.stop();await router?.stop();client?.stop();activeRpc?.close();companion?.close();store?.close();
   if(ownsLock&&existsSync(lockPath)&&JSON.parse(readFileSync(lockPath,'utf8')).nonce===nonce)unlinkSync(lockPath);
 }

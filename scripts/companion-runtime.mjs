@@ -8,6 +8,7 @@ import {parseReplyPlan,outputInstructions,nextWake,activeTime,requestsAvatar} fr
 import {applyAvatar} from '../src/core/qq-avatar.ts';
 import {readCatalog,chooseStickers,stickerFile} from './companion-stickers.mjs';
 import {describeQqImages} from '../src/channels/qq-images.ts';
+import {conversationPersona} from '../src/core/companion-persona.ts';
 
 const folder=join(projectRoot,'data/companion');
 export function companionSettings(){
@@ -25,7 +26,7 @@ export function createCompanion({store,settings,model,request,log=()=>{}}){
   async function generate(conversation,text,{bio=false}={}){
     const owner=conversation.id===JSON.stringify(['qq-onebot',settings.accountId,'private',settings.ownerId]);
     const avatarAllowed=Boolean(owner&&request&&store&&!bio&&((!conversation.proactive&&requestsAvatar(text))||conversation.avatarAuthorized===true));
-    const persona=owner?readFileSync(join(folder,'persona.md'),'utf8'):'你是一位友好、有主见的 QQ 聊天伙伴。对当前联系人用普通朋友的称呼，不透露其他会话的关系和记忆。';
+    const persona=conversationPersona(conversation.id,settings,owner?readFileSync(join(folder,'persona.md'),'utf8'):'');
     let vision='';
     if(conversation.images?.length){vision=await describeQqImages(conversation.images,process.env.DEEPSEEK_API_KEY);if(store&&conversation.eventId)store.observeImages(conversation.eventId,vision);}
     const candidates=bio?[]:chooseStickers(catalog,text+' '+vision);

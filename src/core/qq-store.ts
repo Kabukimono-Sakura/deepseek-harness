@@ -6,6 +6,7 @@ import type { ReplyPlan, Bubble } from './companion.ts';
 
 export type InboxRow = { event_id: string; conversation_id: string; payload: string; state: string; reply: string | null; created_at: number };
 export type OutboxRow = { event_id: string; ordinal: number; payload: string; state: string };
+export type FriendRow = {id:string;account_id:string;user_id:string;flag:string;state:string};
 export type ConversationRow = { id: string; session_id: string; initialized: number; blocked: number };
 
 /** Crash recovery is conservative: uncertain generation/delivery is never replayed. */
@@ -24,6 +25,8 @@ export class QqStore {
       CREATE TABLE IF NOT EXISTS wakeups(conversation_id TEXT PRIMARY KEY, due_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS image_observations(event_id TEXT PRIMARY KEY, description TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS profile_actions(event_id TEXT PRIMARY KEY, choice TEXT NOT NULL, state TEXT NOT NULL, updated_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS friend_requests(id TEXT PRIMARY KEY,account_id TEXT NOT NULL,user_id TEXT NOT NULL,flag TEXT NOT NULL,state TEXT NOT NULL,updated_at INTEGER NOT NULL);
+      UPDATE friend_requests SET state='uncertain' WHERE state='sending';
       UPDATE conversations SET blocked=1 WHERE id IN (SELECT conversation_id FROM inbox WHERE state='processing');
       UPDATE inbox SET state='uncertain' WHERE state IN ('processing','sending');
       UPDATE outbox SET state='uncertain' WHERE state='sending';`);
@@ -43,6 +46,9 @@ export class QqStore {
     return this.#db.prepare("SELECT * FROM inbox WHERE state IN ('received','ready') ORDER BY created_at,rowid LIMIT 1").get() as InboxRow | undefined;
   }
   get(eventId: string): InboxRow | undefined { return this.#db.prepare('SELECT * FROM inbox WHERE event_id=?').get(eventId) as InboxRow | undefined; }
+  queueFriend(accountId:string,userId:string,flag:string):void { this.#db.prepare("INSERT OR IGNORE INTO friend_requests VALUES(?,?,?,?,'queued',?)").run(JSON.stringify([accountId,flag]),accountId,userId,flag,Date.now()); }
+  nextFriend():FriendRow|undefined {return this.#db.prepare("SELECT * FROM friend_requests WHERE state='queued' ORDER BY rowid LIMIT 1").get() as FriendRow|undefined;}
+  friendState(id:string,state:string):void {this.#db.prepare('UPDATE friend_requests SET state=?,updated_at=? WHERE id=?').run(state,Date.now(),id);}
   conversation(id: string): ConversationRow {
     this.#db.prepare('INSERT OR IGNORE INTO conversations(id,session_id) VALUES(?,?)').run(id, randomUUID());
     return this.#db.prepare('SELECT * FROM conversations WHERE id=?').get(id) as ConversationRow;

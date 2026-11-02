@@ -64,3 +64,11 @@ test('a missing API receipt times out without retrying the request',async t=>{
   await assert.rejects(client.request('send_private_msg',{}),error=>error.uncertain===true);
   assert.equal(sends,1);assert.equal(client.ready,true);
 });
+
+test('verified friend requests reach approval handler; group and foreign-account requests do not',async t=>{
+ const {client,sockets}=await fixture(t,()=>{});const ready=once(client,'ready');client.start();await ready;
+ const events=[];client.on('friend-request',event=>events.push(event));
+ const event={post_type:'request',request_type:'friend',self_id:10001,user_id:10002,flag:'flag'};
+ sockets[0].send(JSON.stringify({...event,self_id:999}));sockets[0].send(JSON.stringify({...event,request_type:'group'}));
+ const received=once(client,'friend-request');sockets[0].send(JSON.stringify(event));await received;assert.deepEqual(events,[event]);
+});

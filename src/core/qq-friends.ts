@@ -13,7 +13,7 @@ export class FriendApprover {
     if(event.post_type!=='request'||event.request_type!=='friend'||String(event.self_id)!==this.#options.accountId)return;
     if(typeof event.user_id==='number'&&!Number.isSafeInteger(event.user_id))return;
     const userId=String(event.user_id);
-    if(!/^[1-9]\d*$/.test(userId)||!this.#options.allowedUsers.includes(userId))return;
+    if(!/^[1-9]\d*$/.test(userId))return;
     if(typeof event.flag!=='string'||!event.flag.trim()||event.flag.length>2048)return;
     this.#options.store.queueFriend(this.#options.accountId,userId,event.flag);void this.pump();
   }
@@ -26,9 +26,10 @@ export class FriendApprover {
     const {store,transport,accountId,allowedUsers,enabled,log}=this.#options;
     while(!this.#stopped&&enabled&&transport.ready){
       const row=store.nextFriend();if(!row)return;
-      if(row.account_id!==accountId||!allowedUsers.includes(row.user_id)){store.friendState(row.id,'ignored');continue;}
+      if(row.account_id!==accountId){store.friendState(row.id,'ignored');continue;}
+      const approve=allowedUsers.includes(row.user_id);
       store.friendState(row.id,'sending');
-      try{await transport.request('set_friend_add_request',{flag:row.flag,approve:true});store.friendState(row.id,'approved');log?.('friend-approved');}
+      try{await transport.request('set_friend_add_request',{flag:row.flag,approve});store.friendState(row.id,approve?'approved':'rejected');log?.(approve?'friend-approved':'friend-rejected');}
       catch(error){const uncertain=!(error instanceof OneBotRequestError)||error.uncertain;store.friendState(row.id,uncertain?'uncertain':'queued');log?.(uncertain?'friend-approval-needs-review':'friend-approval-waiting');if(!uncertain)return;}
     }
   }

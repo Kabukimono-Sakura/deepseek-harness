@@ -44,7 +44,7 @@ test('friend requests require allowlist/account/type and are accepted once',asyn
  const store=new QqStore(':memory:');t.after(()=>store.close());const calls=[];
  const approver=new FriendApprover({store,accountId:'10001',allowedUsers:['10002'],enabled:true,transport:{ready:true,async request(action,params){calls.push({action,params});}}});
  const event={post_type:'request',request_type:'friend',self_id:10001,user_id:10002,flag:'test-flag'};
- for(const patch of [{user_id:10003},{self_id:10009},{request_type:'group'},{flag:''}])approver.receive({...event,...patch});
+ for(const patch of [{self_id:10009},{request_type:'group'},{flag:''}])approver.receive({...event,...patch});
  await approver.pump();assert.equal(calls.length,0);
  approver.receive(event);approver.receive(event);await approver.pump();assert.deepEqual(calls,[{action:'set_friend_add_request',params:{flag:'test-flag',approve:true}}]);
  approver.receive(event);await approver.pump();assert.equal(calls.length,1);await approver.stop();
@@ -53,5 +53,17 @@ test('queued friend requests recheck allowlist and uncertain approvals never rep
  const store=new QqStore(':memory:');t.after(()=>store.close());let sends=0;
  store.queueFriend('10001','10003','removed');store.queueFriend('10001','10002','allowed');
  const approver=new FriendApprover({store,accountId:'10001',allowedUsers:['10002'],enabled:true,transport:{ready:true,async request(){sends++;throw new OneBotRequestError('lost receipt',true);}}});
- await approver.pump();await approver.pump();assert.equal(sends,1);assert.equal(store.nextFriend(),undefined);await approver.stop();
+ await approver.pump();await approver.pump();assert.equal(sends,2);assert.equal(store.nextFriend(),undefined);await approver.stop();
+});
+
+test('outsiders and removed contacts are explicitly rejected; disabled policy does nothing',async t=>{
+ const store=new QqStore(':memory:');t.after(()=>store.close());const calls=[];
+ const transport={ready:false,async request(action,params){calls.push({action,params});}};
+ const allowedUsers=['10002'];const options={store,accountId:'10001',allowedUsers,enabled:true,transport};
+ const event={post_type:'request',request_type:'friend',self_id:10001,user_id:10003,flag:'outsider'};
+ const disabled=new FriendApprover({...options,enabled:false});disabled.receive(event);assert.equal(store.nextFriend(),undefined);await disabled.stop();
+ const approver=new FriendApprover(options);approver.receive(event);approver.receive({...event,user_id:10002,flag:'removed'});await approver.pump();assert.equal(calls.length,0);
+ allowedUsers.length=0;transport.ready=true;await approver.pump();
+ assert.deepEqual(calls,[{action:'set_friend_add_request',params:{flag:'outsider',approve:false}},{action:'set_friend_add_request',params:{flag:'removed',approve:false}}]);
+ approver.receive(event);await approver.pump();assert.equal(calls.length,2);await approver.stop();
 });

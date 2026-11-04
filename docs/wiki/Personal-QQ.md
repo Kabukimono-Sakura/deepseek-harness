@@ -43,6 +43,6 @@ All 31 offline tests passed, including account mismatch, event isolation, duplic
 
 ## Allowlisted friend requests
 
-Set `qq.autoApproveFriends` to true to accept incoming friend requests from `allowedUsers` while the bridge is enabled and connected. Account verification and the allowlist are checked before approval; group invitations and other users are ignored. Requests are persisted and deduplicated. An unknown approval outcome is retained for local review, never blindly repeated. Requests sent before the bridge was connected may need to be sent again.
+Set `qq.autoApproveFriends` to true to accept incoming friend requests from `allowedUsers` while the bridge is enabled and connected. Account verification and the allowlist are checked before approval; group invitations are ignored, and non-allowlisted friend requests are explicitly rejected (`approve: false`). Requests are persisted and deduplicated. An unknown approval outcome is retained for local review, never blindly repeated. Requests sent before the bridge was connected may need to be sent again.
 
 Companion mode reserves the private owner persona and “主人” for the configured owner account. Other conversations use a polite, formal persona with “您” and “先生／女士”, honoring an explicitly stated form of address without guessing gender. Private owner persona text is not loaded for these turns; archive retrieval remains conversation-scoped.

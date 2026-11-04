@@ -35,3 +35,23 @@ test('permanent cover upload uses multipart and rejects unsupported files before
  await assert.rejects(client.uploadCover(Buffer.from('not an image')));assert.equal(calls.length,0);
  await client.uploadCover(Buffer.from([137,80,78,71,13,10,26,10]));assert.equal(calls[1].url.searchParams.get('type'),'image');assert.ok(calls[1].options.body instanceof FormData);assert.equal(calls[1].options.body.get('media').type,'image/png');
 });
+import {mediaHash} from '../scripts/wechat.mjs';
+test('inline images stay with chosen paragraphs and reject path traversal; changing pixels invalidates review',t=>{
+ const image={file:'figure-cat.jpg',afterParagraph:0,caption:'<safe caption>'};const value=validateArticle({...article,images:[image]});
+ const html=renderContent(value,()=> 'https://mmbiz.qpic.cn/test');assert.ok(html.includes('src="https://mmbiz.qpic.cn/test"'));assert.ok(html.includes('&lt;safe caption&gt;'));
+ assert.throws(()=>validateArticle({...article,images:[{...image,file:'../secret.png'}]}));assert.throws(()=>validateArticle({...article,images:[{...image,afterParagraph:9}]}));
+ const dir=mkdtempSync(join(tmpdir(),'wechat-images-'));t.after(()=>{assert.equal(dirname(resolve(dir)),resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});});
+ writeFileSync(join(dir,'cover.png'),'cover');writeFileSync(join(dir,image.file),'image-one');const before=mediaHash(dir,value);writeFileSync(join(dir,image.file),'image-two');assert.notEqual(mediaHash(dir,value),before);
+});
+test('inline upload enforces WeChat size and format and uses official image endpoint',async()=>{
+ let calls=[];const client=new WechatClient({appid:'app',secret:'secret',request:async(url,options)=>{calls.push({url:new URL(url),options});return {ok:true,json:async()=>String(url).includes('stable_token')?{access_token:'token',expires_in:7200}:{url:'https://mmbiz.qpic.cn/image'}};}});
+ await assert.rejects(client.uploadInline(Buffer.alloc(1024*1024)));await assert.rejects(client.uploadInline(Buffer.from('invalid-data')));assert.equal(calls.length,0);
+ const r=await client.uploadInline(Buffer.from([137,80,78,71,13,10,26,10]));assert.equal(r.url,'https://mmbiz.qpic.cn/image');assert.equal(calls[1].url.pathname,'/cgi-bin/media/uploadimg');
+});
+
+test('WeChat author field requires an explicit short name; full display author is preserved',async()=>{
+ const value=validateArticle({...article,author:'Elysia的粉色大肥鱼',wechatAuthor:'KabukimonoSakura'});assert.equal(value.author,'Elysia的粉色大肥鱼');assert.equal(value.wechatAuthor,'KabukimonoSakura');
+ assert.throws(()=>validateArticle({...value,wechatAuthor:'Kabukimono Sakura'}));
+ let calls=0;const client=new WechatClient({appid:'app',secret:'secret',request:async()=>{calls++;throw Error();}});
+ await assert.rejects(client.addDraft({...article,author:'Elysia的粉色大肥鱼'},'cover'));assert.equal(calls,0);
+});

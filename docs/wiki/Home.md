@@ -10,6 +10,7 @@ This is an independent local-first companion built around DeepSeek Harness, not 
 - [Local conversation setup](Local-chat.md)
 - [Desktop pet](Desktop-pet.md)
 - [Personal QQ](Personal-QQ.md)
+- [WeChat Official Account drafts](WeChat-Official-Account.md)
 - [Companion personality, memory and proactive contact](Companion.md)
 - [Architecture](Architecture.md)
 - [Testing](Testing.md)

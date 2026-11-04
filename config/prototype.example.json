@@ -47,7 +47,7 @@
     "messageFormat": "array"
   },
   "desktop": { "enabled": false, "plugin": "dsh-pet" },
-  "wechatMp": { "enabled": false },
+  "wechatMp": { "enabled": false, "accountName": "", "subjectType": "personal", "author": "", "mode": "draft-only" },
   "bilibili": {
     "enabled": false,
     "plannedCapabilities": ["video-research", "dynamic-and-comment", "live-danmaku"],

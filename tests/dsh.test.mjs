@@ -82,3 +82,9 @@ test('idle without a terminal event is not evidence of a successful turn', async
   await assert.rejects(backend.turn('a', 'hello'), /did not complete/);
   assert.equal(peer.listeners.size, 0);
 });
+
+test('long-form writing can request a bounded token budget without changing chat defaults',async()=>{
+ const normal=new FakePeer();await new DshBackend(normal).initialize('/workspace');assert.equal(normal.calls[0][1].maxTokens,4096);
+ const writer=new FakePeer();await new DshBackend(writer).initialize('/workspace','deepseek-flash',16384);assert.equal(writer.calls[0][1].maxTokens,16384);
+ const invalid=new FakePeer();await assert.rejects(new DshBackend(invalid).initialize('/workspace','deepseek-flash',Infinity));assert.equal(invalid.calls.length,0);
+});

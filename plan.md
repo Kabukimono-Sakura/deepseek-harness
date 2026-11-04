@@ -51,3 +51,9 @@ Added optional private persona configuration, model-authored QQ bio, planned tex
 This iteration does not complete Bilibili, WeChat, alternative login backends, independent content exploration, or a memory management UI. Private persona and relationship details remain in ignored local data.
 
 Follow-up: added owner-requested avatar changes, result-grounded confirmation and durable non-replay records. The previously selected avatar was successfully applied through the real QQ interface. Sticker downloads now fall back to the source site's display variant when the original host times out. All 43 local tests pass. The first companion CI run exposed an empty V8 child coverage report on Windows despite 41 passing tests; child instrumentation inheritance was removed and CI is being rechecked.
+
+## Official Account publishing workflow — 2026-11-04
+
+User selected a personal certified Official Account and approved the compliant fallback: generate and review locally, upload to the official draft box, then publish manually in WeChat. Current official `freepublish/submit` documentation limits the subscription-account category to certified enterprise subjects. No unofficial publish endpoint, browser-session reuse, mass-send or automatic publication is implemented.
+
+Added public-brief-only DeepSeek writing, escaped HTML preview with AI disclosure, article/cover/AppID-bound review, permanent cover upload and independent draft creation. Durable pending/success/unknown receipts prevent blind duplicate mutations. Official stable-token and draft-count calls passed on the configured account; a real DeepSeek first-article generation passed with a larger bounded writing budget. First upload awaits review. Account credentials and drafts remain local. Callback/reply functionality remains a separate future task. 64 offline tests pass; CI validates without live credentials.

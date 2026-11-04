@@ -9,10 +9,11 @@ export class DshBackend {
 
   constructor(rpc: RpcPeer) { this.#rpc = rpc; }
 
-  async initialize(cwd: string, model = 'deepseek-flash'): Promise<void> {
+  async initialize(cwd: string, model = 'deepseek-flash', maxTokens = 4096): Promise<void> {
     if (this.#ready) throw new Error('Backend already initialized.');
+    if(!Number.isInteger(maxTokens)||maxTokens<1||maxTokens>32768)throw new Error('Invalid output token budget.');
     const result = record(await this.#rpc.request('initialize', {
-      cwd, provider: 'deepseek-official', model, maxTokens: 4096,
+      cwd, provider: 'deepseek-official', model, maxTokens,
     }));
     if (record(result.serverInfo).name !== 'deepseek-harness-sdk-runtime') throw new Error('Unexpected runtime identity.');
     this.#ready = true;

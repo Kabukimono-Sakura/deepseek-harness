@@ -17,7 +17,8 @@ internal sealed class ControlPanel : Form
     private readonly System.Windows.Forms.Timer poll = new System.Windows.Forms.Timer();
     private readonly NotifyIcon tray = new NotifyIcon();
     private bool busy, refreshing, exiting;
-    private Button qqOn, qqOff, petOn, petOff;
+    private Button qqOn, qqOff, petOn, petOff, greet;
+    private string lastWarning = "";
     private readonly Color ink = Color.FromArgb(67, 42, 56), pink = Color.FromArgb(195, 83, 132);
 
     public ControlPanel()
@@ -40,6 +41,8 @@ internal sealed class ControlPanel : Form
         qqOn = ActionButton(qq, "启用 QQ", 18, 106, "qq-start");
         qqOff = ActionButton(qq, "停用 QQ", 144, 106, "qq-stop");
         ActionButton(qq, "扫码登录", 270, 106, "login");
+        greet = ActionButton(qq, "测试打招呼", 396, 106, "greet");
+        greet.Width = 138; greet.Enabled = false;
 
         Panel pet = Card(24, 280, 712, 132);
         LabelAt(pet, "桌宠", 18, 10, 260, 28).Font = new Font(Font.FontFamily, 18F, FontStyle.Bold, GraphicsUnit.Pixel);
@@ -116,7 +119,7 @@ internal sealed class ControlPanel : Form
     private string Value(Dictionary<string, object> data, string key) { object value; return data.TryGetValue(key, out value) ? Convert.ToString(value) : ""; }
     private async Task RunAction(string command) {
         if (busy) return; busy = true; foreach (Button button in actions) button.Enabled = false;
-        notice.Text = command.Contains("stop") ? "正在安全停止，若正在回复，会等待它完成收尾…" : "正在处理，首次打开桌宠可能需要几十秒…";
+        notice.Text = command == "greet" ? "DeepSeek 正在生成问候并发送，请稍候…" : command.Contains("stop") ? "正在安全停止，若正在回复，会等待它完成收尾…" : "正在处理，首次打开桌宠可能需要几十秒…";
         try {
             Dictionary<string, object> data = await Task.Run(() => Call(command));
             notice.Text = Value(data, "message");
@@ -137,11 +140,13 @@ internal sealed class ControlPanel : Form
     }
     private void ApplyStatus(Dictionary<string, object> data) {
             string qq = Value(data,"qq"), pet = Value(data,"pet");
-            qqState.Text = qq == "connected" ? "● 已连接，可以聊天" : qq == "waiting" ? "● 聊天已启用，等待登录或重连" : qq == "starting" ? "● 正在启动 / 等待状态更新" : "○ QQ 聊天已停用";
+            string warning = Value(data,"accountWarning");
+            if(warning.Length > 0) { notice.Text = warning; if(warning != lastWarning) { lastWarning = warning; tray.ShowBalloonTip(10000,"QQ 账号不匹配",warning,ToolTipIcon.Error); MessageBox.Show(this,warning,"QQ 账号不匹配",MessageBoxButtons.OK,MessageBoxIcon.Warning); } } else { lastWarning = ""; }
+            qqState.Text = qq == "connected" ? "● 聊天已启用 · 已连接 · QQ " + Value(data,"accountId") : qq == "waiting" ? "● 聊天已启用，等待登录或重连" : qq == "starting" ? "● 正在启动 / 等待状态更新" : "○ QQ 聊天已停用";
             qqState.ForeColor = qq == "connected" ? Color.FromArgb(48,130,92) : Color.FromArgb(141,106,69);
             petState.Text = pet == "shown" ? "● 桌宠已打开" : pet == "hidden" ? "○ 桌宠已关闭，服务待机" : "○ 桌宠未启动";
             petState.ForeColor = pet == "shown" ? Color.FromArgb(48,130,92) : Color.DimGray;
-            if(!busy) { qqOn.Enabled = qq == "stopped"; qqOff.Enabled = qq != "stopped"; petOn.Enabled = pet != "shown"; petOff.Enabled = pet == "shown"; }
+            if(!busy) { greet.Enabled = qq == "connected" && Value(data,"accountId").Length > 0 && warning.Length == 0; qqOn.Enabled = qq == "stopped"; qqOff.Enabled = qq != "stopped"; petOn.Enabled = pet != "shown"; petOff.Enabled = pet == "shown"; }
     }
     [STAThread]
     public static void Main(string[] args) {
@@ -160,7 +165,7 @@ internal sealed class ControlPanel : Form
                     form.exiting = true; form.Close();
                 }
                 form.tray.Visible = false; form.tray.Dispose();
-                Environment.ExitCode = form.actions.Count == 7 ? 0 : 1;
+                Environment.ExitCode = form.actions.Count == 8 ? 0 : 1;
             } return;
         }
         bool created;

@@ -12,7 +12,7 @@ export class NapcatLoginClient {
     const result=await response.json();if(result.code!==0)throw new Error('NapCat did not confirm login operation');return result.data;
   }
   async request(action){
-    if(!['CheckLoginStatus','RefreshQRcode'].includes(action))throw new Error('Unsupported login operation');
+    if(!['CheckLoginStatus','RefreshQRcode','GetQQLoginInfo'].includes(action))throw new Error('Unsupported login operation');
     if(!this.#credential||Date.now()>=this.#expires){
       const token=await this.#token();if(typeof token!=='string'||!token)throw new Error('NapCat WebUI token unavailable');
       const auth=await this.#post('auth/login',{hash:createHash('sha256').update(token+'.napcat').digest('hex')});

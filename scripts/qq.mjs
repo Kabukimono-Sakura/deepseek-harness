@@ -10,6 +10,9 @@ import { projectRoot, projectEnvironment, requireSupportedNode } from './project
 import {companionSettings,createCompanion,startWakeups} from './companion-runtime.mjs';
 import {isExpectedProcess} from './process-identity.mjs';
 import {FriendApprover} from '../src/core/qq-friends.ts';
+import {checkAccount} from './qq-account-guard.mjs';
+import {startGreetingControl} from './qq-greeting.mjs';
+let guardTimer,guardBusy=false,stopGreeting;
 
 let client, store, router, activeRpc, companion, stopWakeups, stopTimer, healthTimer, friends;
 const lockPath=join(projectRoot,'data/qq-bridge.lock.json');
@@ -64,6 +67,8 @@ try {
   client.on('ready',()=>{console.log('[QQ] authenticated account verified; ready for allowed contacts');void router.pump();void friends.pump();});
   client.on('offline',()=>console.log('[QQ] disconnected; reconnecting unless stopped'));
   client.on('message',event=>router.receive(event));
+  stopGreeting=startGreetingControl({nonce,settings,client,router,store});
+  guardTimer=setInterval(async()=>{if(guardBusy)return;guardBusy=true;try{const result=await checkAccount();if(result.mismatch)client.stop();else if(result.verified)client.start();}catch{}finally{guardBusy=false;}},2000);
   if(companion){console.log('[QQ] companion enabled; sticker catalog: '+companion.catalogSize);stopWakeups=startWakeups({settings,store,router,client,log:event=>console.log('[QQ] '+event)});}
   await new Promise(resolve=>{
     process.once('SIGINT',resolve);process.once('SIGTERM',resolve);
@@ -72,12 +77,13 @@ try {
     stopTimer=setInterval(()=>{if(existsSync(stopPath)){try{if(JSON.parse(readFileSync(stopPath,'utf8')).nonce===nonce){unlinkSync(stopPath);resolve();}}catch{}}},500);
     client.on('diagnostic',code=>{
       console.log('[QQ] '+code);
-      if(code==='account-mismatch'){process.exitCode=1;resolve();}
+      if(code==='account-mismatch'){void checkAccount().catch(()=>{});}
     });
     client.start();
   });
 }catch(error){console.error(error.message);process.exitCode=1;}
 finally{
+  clearInterval(guardTimer);stopGreeting?.();
   clearInterval(stopTimer);clearInterval(healthTimer);stopWakeups?.();await friends?.stop();await router?.stop();client?.stop();activeRpc?.close();companion?.close();store?.close();
   if(ownsLock&&existsSync(lockPath)&&JSON.parse(readFileSync(lockPath,'utf8')).nonce===nonce)unlinkSync(lockPath);
 }

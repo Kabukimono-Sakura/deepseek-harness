@@ -41,3 +41,9 @@ CLI equivalents, useful for diagnosis:
 Logs are private files in `tmp/`; they may contain local authentication URLs and should not be posted publicly without review.
 
 The login page now uses live NapCat status and QR generation instead of the cached PNG. It automatically renews a waiting code after 90 seconds and offers “重新生成二维码”. Reopening login reuses the active viewer to avoid competing refreshes. On service errors the old QR is hidden; successful login is shown on the page.
+
+## Verified account and greeting test
+
+The panel shows whether the conversation service is enabled and the verified logged-in QQ account. The expected account comes from private `config/local.json`. A watchdog checks NapCat every two seconds while the bridge runs; the login page and panel also verify the account. Incorrect accounts cannot pass OneBot account verification. On mismatch the guard verifies the identity of this project's recorded NapCat PID, exits that process tree, and records a persistent panel warning. This closes the project's QQ session, not the user's separate QQ client or phone. If process identity or termination cannot be confirmed, the panel reports failure rather than claiming logout. A correct subsequent login clears the warning.
+
+“测试打招呼” is enabled only when the bridge is connected and the account matches. It queues a nonce-bound, expiring request to the bridge, generates a normal DeepSeek greeting and sends it only to the configured owner. The panel waits for a successful QQ message receipt before reporting success. Failed or unknown delivery is shown as such, without automatic replay. Contact-side receipt and actual wrong-account login still require manual live acceptance; automated tests use fake accounts and transports.

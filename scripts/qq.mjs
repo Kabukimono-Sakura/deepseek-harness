@@ -48,7 +48,10 @@ try {
   publishHealth();healthTimer=setInterval(publishHealth,3000);client.on('ready',publishHealth);client.on('offline',publishHealth);
   const workspace=join(projectRoot,'data/qq-workspace');mkdirSync(workspace,{recursive:true});
   if(settings)companion=createCompanion({store,settings,model:process.env.DEEPSEEK_MODEL||'deepseek-flash',request:(action,params)=>client.request(action,params),log:event=>console.log('[QQ] '+event)});
-  const editor=settings?createQqEditor({settings}):null;
+  const editor=settings?createQqEditor({settings,delivered:eventId=>{
+    const bubbles=store.bubbles(eventId);
+    return bubbles.length>0 && bubbles.every(bubble=>bubble.state==='sent');
+  }}):null;
   router=new QqRouter({store,transport:client,policy:config,accountId:config.accountId,
     log:event=>console.log('[QQ] '+event),
     ...(companion?{settleMs:1200,bubbleDelayMs:()=>700+Math.random()*1300,yieldToNewMessages:true,statelessGeneration:true,preserveReply:message=>editor.handles(message),imageFile:id=>editor.imageFile(id)??companion.imageFile(id)}:{}),

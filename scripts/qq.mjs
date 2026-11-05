@@ -1,3 +1,4 @@
+import {createQqEditor} from './qq-wechat-editor.mjs';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -47,10 +48,13 @@ try {
   publishHealth();healthTimer=setInterval(publishHealth,3000);client.on('ready',publishHealth);client.on('offline',publishHealth);
   const workspace=join(projectRoot,'data/qq-workspace');mkdirSync(workspace,{recursive:true});
   if(settings)companion=createCompanion({store,settings,model:process.env.DEEPSEEK_MODEL||'deepseek-flash',request:(action,params)=>client.request(action,params),log:event=>console.log('[QQ] '+event)});
+  const editor=settings?createQqEditor({settings}):null;
   router=new QqRouter({store,transport:client,policy:config,accountId:config.accountId,
     log:event=>console.log('[QQ] '+event),
-    ...(companion?{settleMs:1200,bubbleDelayMs:()=>700+Math.random()*1300,yieldToNewMessages:true,statelessGeneration:true,imageFile:companion.imageFile}:{}),
+    ...(companion?{settleMs:1200,bubbleDelayMs:()=>700+Math.random()*1300,yieldToNewMessages:true,statelessGeneration:true,preserveReply:message=>editor.handles(message),imageFile:id=>editor.imageFile(id)??companion.imageFile(id)}:{}),
     generate:async(conversation,text)=>{
+      const editorialReply=await editor?.handle(conversation,text);
+      if(editorialReply)return editorialReply;
       if(companion)return companion.generate(conversation,text);
       const rpc=new JsonRpcProcess(process.execPath,[cli,'--profile','sdk-minimal','--patch',join(projectRoot,'config/companion.patch.yml')],{cwd:workspace,env:projectEnvironment(),timeoutMs:180_000});
       activeRpc=rpc;

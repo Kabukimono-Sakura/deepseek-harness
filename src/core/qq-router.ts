@@ -10,7 +10,7 @@ interface Conversation { sessionId: string; resume: boolean; id: string; eventId
 type Options = { store: QqStore; transport: Transport; policy: OneBotPolicy; accountId: string;
   generate: (conversation: Conversation, text: string) => Promise<string | ReplyPlan>;
   imageFile?: (stickerId: string) => Promise<string>; log?: (event: string) => void;
-  settleMs?: number; bubbleDelayMs?: () => number; yieldToNewMessages?: boolean; statelessGeneration?: boolean };
+  preserveReply?: (message: IncomingMessage) => boolean; settleMs?: number; bubbleDelayMs?: () => number; yieldToNewMessages?: boolean; statelessGeneration?: boolean };
 export class QqRouter {
   #options: Options;
   #running?: Promise<void>;
@@ -44,12 +44,13 @@ export class QqRouter {
     while (!this.#stopped && transport.ready) {
       const row=store.next(); if (!row) return;
       const message=JSON.parse(row.payload) as IncomingMessage;
+      const yieldToNewMessages = this.#options.yieldToNewMessages && !this.#options.preserveReply?.(message);
       if (!this.#allowed(message)) { store.setState(row.event_id,'failed');continue; }
       if (message.expiresAt && Date.now()>=message.expiresAt) {store.setState(row.event_id,'skipped');continue;}
       if (row.state==='received') {
         if(this.#options.settleMs)await this.#pause(this.#options.settleMs);
         if(this.#stopped || !transport.ready)return;
-        if (this.#options.yieldToNewMessages && store.newerUserMessage(row)) {store.setState(row.event_id,'superseded');continue;}
+        if (yieldToNewMessages && store.newerUserMessage(row)) {store.setState(row.event_id,'superseded');continue;}
         const conversation=store.conversation(row.conversation_id);
         if(conversation.blocked){store.setState(row.event_id,'failed');this.#log('conversation-needs-review');continue;}
         store.setState(row.event_id,'processing');
@@ -72,7 +73,7 @@ export class QqRouter {
         if(item.state!=='ready'){store.setState(row.event_id,'uncertain');completed=false;break;}
         if(item.ordinal>0)await this.#pause(this.#options.bubbleDelayMs?.()??0);
         if(this.#stopped || !transport.ready){store.setState(row.event_id,'ready');return;}
-        if((message.expiresAt && Date.now()>=message.expiresAt) || (this.#options.yieldToNewMessages && store.newerUserMessage(row))){
+        if((message.expiresAt && Date.now()>=message.expiresAt) || (yieldToNewMessages && store.newerUserMessage(row))){
           store.setState(row.event_id,'superseded');completed=false;break;
         }
         const bubble=JSON.parse(item.payload) as Bubble;
@@ -83,7 +84,7 @@ export class QqRouter {
           catch{store.bubbleState(row.event_id,item.ordinal,'failed');this.#log('sticker-unavailable');continue;}
         }
         if(this.#stopped || !transport.ready){store.setState(row.event_id,'ready');return;}
-        if((message.expiresAt && Date.now()>=message.expiresAt)||(this.#options.yieldToNewMessages && store.newerUserMessage(row))){store.setState(row.event_id,'superseded');completed=false;break;}
+        if((message.expiresAt && Date.now()>=message.expiresAt)||(yieldToNewMessages && store.newerUserMessage(row))){store.setState(row.event_id,'superseded');completed=false;break;}
         if('text' in bubble && bubble.text.length>4000){store.bubbleState(row.event_id,item.ordinal,'failed');this.#log('reply-too-long');continue;}
         const request=createOneBotReply(message,'text' in bubble ? bubble.text : '[表情]',row.event_id);
         const params: Record<string,unknown>={...request.params};

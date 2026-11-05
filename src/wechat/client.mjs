@@ -1,3 +1,4 @@
+import {isIP} from 'node:net';
 export class WechatApiError extends Error{
  constructor(code,uncertain=false){super('微信接口未完成：'+code);this.code=code;this.uncertain=uncertain;}
 }
@@ -7,7 +8,15 @@ export class WechatClient{
  async #call(path,body,{token=false,form=false,method='POST'}={}){
   const access=token?await this.token():null;const url=new URL('https://api.weixin.qq.com'+path);if(access)url.searchParams.set('access_token',access);
   let result;try{const response=await this.#fetch(url,{method,redirect:'error',signal:AbortSignal.timeout(20000),headers:form?{}:{'Content-Type':'application/json'},body:method==='GET'?undefined:form?body:JSON.stringify(body)});if(!response.ok)throw Error();result=await response.json();}catch{throw new WechatApiError('网络异常，结果未知，请勿自动重试',true);}
-  if(result.errcode)throw new WechatApiError(Number(result.errcode));return result;
+  if(result.errcode){
+   const error=new WechatApiError(Number(result.errcode));
+   if(error.code===40164){
+    const ip=String(result.errmsg??'').match(/invalid ip\s+([0-9a-f:.]+)/i)?.[1];
+    if(ip&&isIP(ip)){error.requiredWhitelistIp=ip;error.message+='；请将当前出口 IP '+ip+' 加入公众号 IP 白名单。';}
+    else error.message+='；请检查公众号 IP 白名单。';
+   }
+   throw error;
+  }return result;
  }
  async token(){
   if(this.#token&&Date.now()<this.#expires)return this.#token;

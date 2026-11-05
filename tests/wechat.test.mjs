@@ -55,3 +55,10 @@ test('WeChat author field requires an explicit short name; full display author i
  let calls=0;const client=new WechatClient({appid:'app',secret:'secret',request:async()=>{calls++;throw Error();}});
  await assert.rejects(client.addDraft({...article,author:'Elysia的粉色大肥鱼'},'cover'));assert.equal(calls,0);
 });
+
+test('IP whitelist guidance extracts only a valid address and never leaks raw provider errors',async()=>{
+ for(const [message,expected] of [['invalid ip 192.0.2.8 not in whitelist, secret=hidden','192.0.2.8'],['invalid ip 2001:db8::8 not in whitelist, secret=hidden','2001:db8::8'],['invalid ip 999.999.1.1 secret=hidden',undefined]]){
+  const client=new WechatClient({appid:'app',secret:'hidden',request:async()=>({ok:true,json:async()=>({errcode:40164,errmsg:message})})});
+  await assert.rejects(client.probe(),e=>e.code===40164&&e.requiredWhitelistIp===expected&&!e.message.includes('hidden')&&e.message.includes('白名单'));
+ }
+});
